@@ -57,8 +57,11 @@ function App() {
         setTimeout(fetchData, 1000);
       })
       .catch((error) => {
-        console.error("There was an error in the POST request:", error);
-        setUpdateStatus("Update failed. Please check the console for details.");
+        const errorMessage = error.response
+          ? `Error: ${error.response.status} - ${error.response.data}`
+          : `Error: ${error.message}`;
+        console.error("Error fetching data:", errorMessage);
+        setError(errorMessage);
       });
   };
 
