@@ -3,7 +3,7 @@ import axios from "axios";
 
 const DATA_URL = "https://yujungfunctiontesting.azurewebsites.net/api/data";
 const UPDATE_URL = "https://yujungfunctiontesting.azurewebsites.net/api/update";
-const INSERT_URL = "https://yujungfunctiontesting.azurewebsites.net/api/insert"; // Add endpoint for insertion
+const INSERT_URL = "https://yujungfunctiontesting.azurewebsites.net/api/insert";
 
 function App() {
   const [data, setData] = useState([]);
@@ -12,7 +12,13 @@ function App() {
   const [selectedJobId, setSelectedJobId] = useState("");
   const [selectedColumn, setSelectedColumn] = useState("");
   const [newValue, setNewValue] = useState("");
-
+  const [newJob, setNewJob] = useState({
+    StartDate: "",
+    StartHour: "",
+    Name: "",
+    Description: "",
+    IsActive: "",
+  });
 
   useEffect(() => {
     fetchData();
@@ -26,7 +32,7 @@ function App() {
         setError("");
       })
       .catch((error) => {
-        console.error("There was an error fetching the data:", error);
+        logError("Error fetching data", error);
         setError("Failed to load data. Please try again later.");
       });
   };
@@ -37,36 +43,25 @@ function App() {
       return;
     }
 
-    const update_requestBody = {
+    const updateRequestBody = {
       JobId: parseInt(selectedJobId, 10),
       column: selectedColumn,
       value: newValue,
     };
 
     axios
-      .post(UPDATE_URL, update_requestBody)
+      .post(UPDATE_URL, updateRequestBody)
       .then((response) => {
         console.log("POST request successful:", response.data);
         setUpdateStatus("Update successful. Refreshing data...");
-        setSelectedJobId("");
-        setSelectedColumn("");
-        setNewValue("");
+        clearUpdateFields();
         setTimeout(fetchData, 1000);
       })
       .catch((error) => {
-        console.error("There was an error in the POST request:", error);
-        setUpdateStatus("Update failed. Please check the console for details.");
+        logError("Error in POST request", error);
+        setUpdateStatus("Update failed. Please check the error details.");
       });
   };
-
-
-  const [newJob, setNewJob] = useState({
-    StartDate: "",
-    StartHour: "",
-    Name: "",
-    Description: "",
-    IsActive: "",
-  });
 
   const handleInsertJob = () => {
     axios
@@ -74,56 +69,48 @@ function App() {
       .then((response) => {
         console.log("Insert successful:", response.data);
         setUpdateStatus("Job inserted successfully. Refreshing data...");
-        setNewJob({ StartDate: "", StartHour: "", Name: "", Description: "", IsActive: "" });
+        resetNewJob();
         setTimeout(fetchData, 1000);
       })
       .catch((error) => {
-        console.error("Error inserting job:", error);
-        setUpdateStatus("Job insertion failed. Please check the console for details.");
+        logError("Error inserting job", error);
+        setUpdateStatus("Job insertion failed. Please check the error details.");
       });
   };
 
   const validateInput = () => {
     switch (selectedColumn) {
       case "JobId":
-        return /^[0-9]+$/.test(newValue); // Numbers only
+        return /^[0-9]+$/.test(newValue);
       case "StartDate":
-        return /^\d{4}-\d{2}-\d{2}$/.test(newValue); // YYYY-MM-DD format
+        return /^\d{4}-\d{2}-\d{2}$/.test(newValue);
       case "StartHour":
-        return /^\d{2}:\d{2}:\d{2}$/.test(newValue); // HH:MM:SS format
+        return /^\d{2}:\d{2}:\d{2}$/.test(newValue);
       case "Name":
       case "Description":
-        return newValue.length > 0 && newValue.length <= 100; // Text length check
+        return newValue.length > 0 && newValue.length <= 100;
       case "IsActive":
-        return newValue === "1" || newValue === "0"; // Only "1" or "0"
+        return newValue === "1" || newValue === "0";
       default:
         return false;
     }
   };
 
-  const getLegend = () => {
-    return (
-      <div
-      style={{
-        margin: "80px",
-        padding: "15px",
-        border: "2px solid",
-        maxWidth: "300px", 
-        maxHeight: "200px",
-        overflowY: "auto",
-      }}
-    >
-        <h3>Legend</h3>
-        <ul>
-          <li>JobId: Integer</li>
-          <li>StartDate: Date</li>
-          <li>StartHour: HH:MM:SS</li>
-          <li>Name: text</li>
-          <li>Description: Text</li>
-          <li>IsActive: 1 or 0</li>
-        </ul>
-      </div>
-    );
+  const clearUpdateFields = () => {
+    setSelectedJobId("");
+    setSelectedColumn("");
+    setNewValue("");
+  };
+
+  const resetNewJob = () => {
+    setNewJob({ StartDate: "", StartHour: "", Name: "", Description: "", IsActive: "" });
+  };
+
+  const logError = (context, error) => {
+    console.error(`${context}:`, error);
+    const detailedError =
+      error.response?.data?.error || error.response?.data || error.message || "Unknown error occurred";
+    setError(detailedError);
   };
 
   return (
@@ -131,7 +118,7 @@ function App() {
       <div>
         <h1>Jobs from Azure SQL</h1>
 
-        {error && <p style={{ color: "red" }}>{error}</p>}
+        {error && <p style={{ color: "red" }}>{`Error: ${error}`}</p>}
 
         <table border="1">
           <thead>
@@ -158,22 +145,14 @@ function App() {
           </tbody>
         </table>
         <br />
-        {updateStatus && (
-          <p style={{ fontWeight: "bold",  
-                      textDecoration: "underline",
-                      fontSize: "20px",
-                    }}>
-            {updateStatus}
-          </p>
-        )}
+        {updateStatus && <p style={{ fontWeight: "bold" }}>{updateStatus}</p>}
+
+        {/* Update Job Section */}
         <div>
           <h3>Update Job Data</h3>
           <label>
             Job ID:
-            <select
-              value={selectedJobId}
-              onChange={(e) => setSelectedJobId(e.target.value)}
-            >
+            <select value={selectedJobId} onChange={(e) => setSelectedJobId(e.target.value)}>
               <option value="" disabled>
                 Job ID
               </option>
@@ -184,13 +163,9 @@ function App() {
               ))}
             </select>
           </label>
-
           <label>
             Column:
-            <select
-              value={selectedColumn}
-              onChange={(e) => setSelectedColumn(e.target.value)}
-            >
+            <select value={selectedColumn} onChange={(e) => setSelectedColumn(e.target.value)}>
               <option value="" disabled>
                 Select Column
               </option>
@@ -201,83 +176,28 @@ function App() {
               <option value="IsActive">IsActive</option>
             </select>
           </label>
-
           <label>
             Enter New Value:
-            <input
-              type="text"
-              value={newValue}
-              onChange={(e) => setNewValue(e.target.value)}
-            />
+            <input type="text" value={newValue} onChange={(e) => setNewValue(e.target.value)} />
           </label>
-
           <button onClick={handlePostRequest}>Update</button>
-
         </div>
-        <br />
+
+        {/* Insert Job Section */}
         <div>
           <h3>Insert New Job</h3>
-          <table style={{ borderCollapse: "collapse" }}>
-            <tbody>
-              <tr>
-                <td><label>Start Date:</label></td>
-                <td>
-                  <input
-                    type="date"
-                    value={newJob.StartDate}
-                    onChange={(e) => setNewJob({ ...newJob, StartDate: e.target.value })}
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td><label>Start Hour:</label></td>
-                <td>
-                  <input
-                    type="time"
-                    value={newJob.StartHour}
-                    onChange={(e) => setNewJob({ ...newJob, StartHour: e.target.value })}
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td><label>Name:</label></td>
-                <td>
-                  <input
-                    type="text"
-                    value={newJob.Name}
-                    onChange={(e) => setNewJob({ ...newJob, Name: e.target.value })}
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td><label>Description:</label></td>
-                <td>
-                  <input
-                    type="text"
-                    value={newJob.Description}
-                    onChange={(e) => setNewJob({ ...newJob, Description: e.target.value })}
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td><label>Is Active:</label></td>
-                <td>
-                  <select
-                    value={newJob.IsActive}
-                    onChange={(e) => setNewJob({ ...newJob, IsActive: e.target.value })}
-                  >
-                    <option value="">Select</option>
-                    <option value="1">Yes</option>
-                    <option value="0">No</option>
-                  </select>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <input type="date" value={newJob.StartDate} onChange={(e) => setNewJob({ ...newJob, StartDate: e.target.value })} />
+          <input type="time" value={newJob.StartHour} onChange={(e) => setNewJob({ ...newJob, StartHour: e.target.value })} />
+          <input type="text" value={newJob.Name} onChange={(e) => setNewJob({ ...newJob, Name: e.target.value })} />
+          <input type="text" value={newJob.Description} onChange={(e) => setNewJob({ ...newJob, Description: e.target.value })} />
+          <select value={newJob.IsActive} onChange={(e) => setNewJob({ ...newJob, IsActive: e.target.value })}>
+            <option value="">Select</option>
+            <option value="1">Yes</option>
+            <option value="0">No</option>
+          </select>
           <button onClick={handleInsertJob}>Insert Job</button>
         </div>
       </div>
-      {getLegend()}
     </div>
   );
 }
